@@ -4,10 +4,21 @@ import pkg_resources
 from django.utils import translation
 from web_fragments.fragment import Fragment
 from xblock.core import XBlock
-from xblock.fields import Integer, Scope
-from xblockutils.resources import ResourceLoader
+from xblock.fields import Boolean, Dict, Integer, List, Scope, String
+
+try:
+    from xblock.utils.resources import ResourceLoader
+except ModuleNotFoundError:  # For backward compatibility with releases older than Quince.
+    from xblockutils.resources import ResourceLoader
+
+resource_loader = ResourceLoader(__name__)
+
+# Make '_' a no-op so we can scrape strings. Using lambda instead of
+#  `django.utils.translation.ugettext_noop` because Django cannot be imported in this file
+_ = lambda text: text
 
 
+@XBlock.needs('i18n')
 class WordCloudXBlock(XBlock):
     """
     TO-DO: document what your XBlock does.
@@ -17,9 +28,70 @@ class WordCloudXBlock(XBlock):
     # self.<fieldname>.
 
     # TO-DO: delete count, and define your own fields.
+    # TODO: remove following line
     count = Integer(
         default=0, scope=Scope.user_state,
         help="A simple counter, to show something happening",
+    )
+
+    # TODO: review following property coming from XModuleMixin
+    @property
+    def location(self):
+        return self.scope_ids.usage_id
+
+
+    display_name = String(
+        display_name=_("Display Name"),
+        help=_("The display name for this component."),
+        scope=Scope.settings,
+        default="Word cloud"
+    )
+    instructions = String(
+        display_name=_("Instructions"),
+        help=_(
+            "Add instructions to help learners understand how to use the word cloud. Clear instructions are important, especially for learners who have accessibility requirements."),
+        # nopep8 pylint: disable=C0301
+        scope=Scope.settings,
+    )
+    num_inputs = Integer(
+        display_name=_("Inputs"),
+        help=_("The number of text boxes available for learners to add words and sentences."),
+        scope=Scope.settings,
+        default=5,
+        values={"min": 1}
+    )
+    num_top_words = Integer(
+        display_name=_("Maximum Words"),
+        help=_("The maximum number of words displayed in the generated word cloud."),
+        scope=Scope.settings,
+        default=250,
+        values={"min": 1}
+    )
+    display_student_percents = Boolean(
+        display_name=_("Show Percents"),
+        help=_("Statistics are shown for entered words near that word."),
+        scope=Scope.settings,
+        default=True
+    )
+
+    # Fields for descriptor.
+    submitted = Boolean(
+        help=_("Whether this learner has posted words to the cloud."),
+        scope=Scope.user_state,
+        default=False
+    )
+    student_words = List(
+        help=_("Student answer."),
+        scope=Scope.user_state,
+        default=[]
+    )
+    all_words = Dict(
+        help=_("All possible words from all learners."),
+        scope=Scope.user_state_summary
+    )
+    top_words = Dict(
+        help=_("Top num_top_words words for word cloud."),
+        scope=Scope.user_state_summary
     )
 
     def resource_string(self, path):
@@ -32,10 +104,20 @@ class WordCloudXBlock(XBlock):
         """
         Create primary view of the WordCloudXBlock, shown to students when viewing courses.
         """
-        if context:
-            pass  # TO-DO: do something based on the context.
-        html = self.resource_string("static/html/word_cloud.html")
-        frag = Fragment(html.format(self=self))
+        frag = Fragment()
+        frag.add_content(resource_loader.render_django_template(
+            'templates/word_cloud.html',
+            {
+                # 'ajax_url': self.ajax_url,
+                'display_name': self.display_name,
+                'instructions': self.instructions,
+                # 'element_class': self.location.block_type,
+                # 'element_id': self.location.html_id(),
+                'num_inputs': self.num_inputs,
+                'submitted': self.submitted,
+            },
+            i18n_service = self.runtime.service(self, 'i18n')
+        ))
         frag.add_css(self.resource_string("static/css/word_cloud.css"))
 
         # Add i18n js
@@ -95,7 +177,7 @@ class WordCloudXBlock(XBlock):
         for code in (locale_code, lang_code, 'en'):
             loader = ResourceLoader(__name__)
             if pkg_resources.resource_exists(
-                    loader.module_name, text_js.format(locale_code=code)):
+                loader.module_name, text_js.format(locale_code=code)):
                 return text_js.format(locale_code=code)
         return None
 
