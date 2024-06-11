@@ -37,7 +37,7 @@ def get_version(*file_paths):
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(REPO_ROOT)
 
-VERSION = get_version('../word_cloud', '__init__.py')
+VERSION = get_version('../word_cloud_2', '__init__.py')
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -530,8 +530,8 @@ def on_init(app):  # pylint: disable=unused-argument
         # If we are, assemble the path manually
         bin_path = os.path.abspath(os.path.join(sys.prefix, 'bin'))
         apidoc_path = os.path.join(bin_path, apidoc_path)
-    check_call([apidoc_path, '-o', docs_path, os.path.join(root_path, 'word_cloud'),
-                os.path.join(root_path, 'word_cloud/migrations')])
+    check_call([apidoc_path, '-o', docs_path, os.path.join(root_path, 'word_cloud_2'),
+                os.path.join(root_path, 'word_cloud_2/migrations')])
 
 
 def setup(app):

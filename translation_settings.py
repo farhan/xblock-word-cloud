@@ -16,7 +16,7 @@ SECRET_KEY = os.getenv('DJANGO_SECRET', 'open_secret')
 
 INSTALLED_APPS = (
     'statici18n',
-    'word_cloud',
+    'word_cloud_2',
 )
 
 # Internationalization
@@ -41,12 +41,12 @@ STATIC_URL = '/static/'
 # statici18n
 # https://django-statici18n.readthedocs.io/en/latest/settings.html
 
-LOCALE_PATHS = [os.path.join(BASE_DIR, 'word_cloud', 'conf', 'locale')]
+LOCALE_PATHS = [os.path.join(BASE_DIR, 'word_cloud_2', 'conf', 'locale')]
 
 STATICI18N_DOMAIN = 'text'
 STATICI18N_NAMESPACE = 'WordCloudI18n'
 STATICI18N_PACKAGES = (
-    'word_cloud',
+    'word_cloud_2',
 )
-STATICI18N_ROOT = 'word_cloud/public/js'
+STATICI18N_ROOT = 'word_cloud_2/public/js'
 STATICI18N_OUTPUT_DIR = 'translations'

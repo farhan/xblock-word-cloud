@@ -2,6 +2,7 @@
 
 import pkg_resources
 from django.utils import translation
+from opaque_keys.edx.keys import UsageKey
 from web_fragments.fragment import Fragment
 from xblock.core import XBlock
 from xblock.fields import Boolean, Dict, Integer, List, Scope, String
@@ -18,7 +19,7 @@ resource_loader = ResourceLoader(__name__)
 _ = lambda text: text
 
 
-@XBlock.needs('i18n')
+# @XBlock.needs('i18n')
 class WordCloudXBlock(XBlock):
     """
     TO-DO: document what your XBlock does.
@@ -33,12 +34,6 @@ class WordCloudXBlock(XBlock):
         default=0, scope=Scope.user_state,
         help="A simple counter, to show something happening",
     )
-
-    # TODO: review following property coming from XModuleMixin
-    @property
-    def location(self):
-        return self.scope_ids.usage_id
-
 
     display_name = String(
         display_name=_("Display Name"),
@@ -99,7 +94,6 @@ class WordCloudXBlock(XBlock):
         data = pkg_resources.resource_string(__name__, path)
         return data.decode("utf8")
 
-    # TO-DO: change this view to display your data your own way.
     def student_view(self, context=None):
         """
         Create primary view of the WordCloudXBlock, shown to students when viewing courses.
@@ -109,24 +103,29 @@ class WordCloudXBlock(XBlock):
             'templates/word_cloud.html',
             {
                 # 'ajax_url': self.ajax_url,
+                'ajax_url': '',
                 'display_name': self.display_name,
                 'instructions': self.instructions,
-                # 'element_class': self.location.block_type,
-                # 'element_id': self.location.html_id(),
+                'element_class': "word_cloud_2",
+                'element_id': self.scope_ids.usage_id,
+                # TODO: review following 2 lines coming from XModuleMixin
+                # 'element_class': self.location.block_type,"'word_cloud_2'"
+                # 'element_id': self.location.html_id(), self.scope_ids.usage_id
                 'num_inputs': self.num_inputs,
+                'range_num_inputs': range(self.num_inputs),
                 'submitted': self.submitted,
             },
-            i18n_service = self.runtime.service(self, 'i18n')
+            # i18n_service = self.runtime.service(self, 'i18n')
         ))
         frag.add_css(self.resource_string("static/css/word_cloud.css"))
 
-        # Add i18n js
-        statici18n_js_url = self._get_statici18n_js_url()
-        if statici18n_js_url:
-            frag.add_javascript_url(self.runtime.local_resource_url(self, statici18n_js_url))
+        # # Add i18n js
+        # statici18n_js_url = self._get_statici18n_js_url()
+        # if statici18n_js_url:
+        #     frag.add_javascript_url(self.runtime.local_resource_url(self, statici18n_js_url))
 
-        frag.add_javascript(self.resource_string("static/js/src/word_cloud.js"))
-        frag.initialize_js('WordCloudXBlock')
+        frag.add_javascript(self.resource_string("static/js/src/WordCloudBlockDisplay.js"))
+        frag.initialize_js('XBlockToXModuleShim')
         return frag
 
     # TO-DO: change this handler to perform your own actions.  You may need more
@@ -151,13 +150,13 @@ class WordCloudXBlock(XBlock):
         """Create canned scenario for display in the workbench."""
         return [
             ("WordCloudXBlock",
-             """<word_cloud/>
+             """<word_cloud_2/>
              """),
             ("Multiple WordCloudXBlock",
              """<vertical_demo>
-                <word_cloud/>
-                <word_cloud/>
-                <word_cloud/>
+                <word_cloud_2/>
+                <word_cloud_2/>
+                <word_cloud_2/>
                 </vertical_demo>
              """),
         ]
