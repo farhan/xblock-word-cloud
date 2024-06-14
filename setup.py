@@ -134,7 +134,7 @@ def package_data(pkg, roots):
     return {pkg: data}
 
 
-VERSION = get_version('word_cloud', '__init__.py')
+VERSION = get_version('word_cloud_2', '__init__.py')
 
 if sys.argv[-1] == 'tag':
     print("Tagging the version on github:")
@@ -146,7 +146,7 @@ README = open(os.path.join(os.path.dirname(__file__), 'README.rst'), encoding="u
 CHANGELOG = open(os.path.join(os.path.dirname(__file__), 'CHANGELOG.rst'), encoding="utf8").read()
 
 setup(
-    name='word-cloud-xblock',
+    name='cloud2',
     version=VERSION,
     description="""Word Cloud XBlock""",
     long_description=README + '\n\n' + CHANGELOG,
@@ -154,7 +154,7 @@ setup(
     author_email='oscm@openedx.org',
     url='https://github.com/openedx/word-cloud',
     packages=find_packages(
-        include=['word_cloud', 'word_cloud.*'],
+        include=['word_cloud_2', 'word_cloud_2.*'],
         exclude=["*tests"],
     ),
 
@@ -174,9 +174,9 @@ setup(
     ],
     entry_points={
         'xblock.v1': [
-            'word_cloud = word_cloud:WordCloudXBlock',
+            'word_cloud_2 = word_cloud_2.word_cloud:WordCloudXBlock',
         ]
     },
-    package_data=package_data("word_cloud", ["static", "public"]),
+    package_data=package_data("word_cloud_2", ["static", "public"]),
 
 )

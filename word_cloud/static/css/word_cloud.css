@@ -1,9 +1,0 @@
-/* CSS for WordCloudXBlock */
-
-.word_cloud_block .count {
-    font-weight: bold;
-}
-
-.word_cloud_block p {
-    cursor: pointer;
-}
