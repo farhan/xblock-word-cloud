@@ -1,11 +1,11 @@
 """TO-DO: Write a description of what this XBlock is."""
+import json
 
 import pkg_resources
-from django.utils import translation
-from opaque_keys.edx.keys import UsageKey
 from web_fragments.fragment import Fragment
 from xblock.core import XBlock
 from xblock.fields import Boolean, Dict, Integer, List, Scope, String
+from xblockutils.studio_editable import StudioEditableXBlockMixin
 
 try:
     from xblock.utils.resources import ResourceLoader
@@ -19,21 +19,22 @@ resource_loader = ResourceLoader(__name__)
 _ = lambda text: text
 
 
+def pretty_bool(value):
+    """Check value for possible `True` value.
+
+    Using this function we can manage different type of Boolean value
+    in xml files.
+    """
+    bool_dict = [True, "True", "true", "T", "t", "1"]
+    return value in bool_dict
+
+
 # @XBlock.needs('i18n')
-class WordCloudXBlock(XBlock):
+class WordCloudXBlock(StudioEditableXBlockMixin, XBlock):
     """
     TO-DO: document what your XBlock does.
     """
-
-    # Fields are defined on the class.  You can access them in your code as
-    # self.<fieldname>.
-
-    # TO-DO: delete count, and define your own fields.
-    # TODO: remove following line
-    count = Integer(
-        default=0, scope=Scope.user_state,
-        help="A simple counter, to show something happening",
-    )
+    editable_fields = ["display_name", "num_inputs", "instructions", "num_top_words", "display_student_percents"]
 
     display_name = String(
         display_name=_("Display Name"),
@@ -119,32 +120,16 @@ class WordCloudXBlock(XBlock):
         ))
         frag.add_css(self.resource_string("static/css/word_cloud.css"))
 
-        # # Add i18n js
-        # statici18n_js_url = self._get_statici18n_js_url()
-        # if statici18n_js_url:
-        #     frag.add_javascript_url(self.runtime.local_resource_url(self, statici18n_js_url))
-
         frag.add_javascript(self.resource_string("static/js/src/WordCloudBlockDisplay.js"))
         frag.initialize_js('XBlockToXModuleShim')
         return frag
 
-    # TO-DO: change this handler to perform your own actions.  You may need more
-    # than one handler, or you may not need any handlers at all.
-    @XBlock.json_handler
-    def increment_count(self, data, suffix=''):
+    def author_view(self, context):
         """
-        Increments data. An example handler.
+        Renders the output that an author will see.
         """
-        if suffix:
-            pass  # TO-DO: Use the suffix when storing data.
-        # Just to show data coming in...
-        assert data['hello'] == 'world'
+        return self.student_view(context)
 
-        self.count += 1
-        return {"count": self.count}
-
-    # TO-DO: change this to create the scenarios you'd like to see in the
-    # workbench while developing your XBlock.
     @staticmethod
     def workbench_scenarios():
         """Create canned scenario for display in the workbench."""
@@ -161,28 +146,197 @@ class WordCloudXBlock(XBlock):
              """),
         ]
 
-    @staticmethod
-    def _get_statici18n_js_url():
-        """
-        Return the Javascript translation file for the currently selected language, if any.
+    # @staticmethod
+    # def _get_statici18n_js_url():
+    #     """
+    #     Return the Javascript translation file for the currently selected language, if any.
+    #
+    #     Defaults to English if available.
+    #     """
+    #     locale_code = translation.get_language()
+    #     if locale_code is None:
+    #         return None
+    #     text_js = 'public/js/translations/{locale_code}/text.js'
+    #     lang_code = locale_code.split('-')[0]
+    #     for code in (locale_code, lang_code, 'en'):
+    #         loader = ResourceLoader(__name__)
+    #         if pkg_resources.resource_exists(
+    #             loader.module_name, text_js.format(locale_code=code)):
+    #             return text_js.format(locale_code=code)
+    #     return None
 
-        Defaults to English if available.
-        """
-        locale_code = translation.get_language()
-        if locale_code is None:
-            return None
-        text_js = 'public/js/translations/{locale_code}/text.js'
-        lang_code = locale_code.split('-')[0]
-        for code in (locale_code, lang_code, 'en'):
-            loader = ResourceLoader(__name__)
-            if pkg_resources.resource_exists(
-                loader.module_name, text_js.format(locale_code=code)):
-                return text_js.format(locale_code=code)
-        return None
+    # @staticmethod
+    # def get_dummy():
+    #     """
+    #     Generate initial i18n with dummy method.
+    #     """
+    #     return translation.gettext_noop('Dummy')
 
-    @staticmethod
-    def get_dummy():
+    def get_state(self):
+        """Return success json answer for client."""
+        if self.submitted:
+            total_count = sum(self.all_words.values())
+            return json.dumps({
+                'status': 'success',
+                'submitted': True,
+                'display_student_percents': pretty_bool(
+                    self.display_student_percents
+                ),
+                'student_words': {
+                    word: self.all_words[word] for word in self.student_words
+                },
+                'total_count': total_count,
+                'top_words': self.prepare_words(self.top_words, total_count)
+            })
+        else:
+            return json.dumps({
+                'status': 'success',
+                'submitted': False,
+                'display_student_percents': False,
+                'student_words': {},
+                'total_count': 0,
+                'top_words': {}
+            })
+
+    def good_word(self, word):
+        """Convert raw word to suitable word."""
+        return word.strip().lower()
+
+    def prepare_words(self, top_words, total_count):
+        """Convert words dictionary for client API.
+
+        :param top_words: Top words dictionary
+        :type top_words: dict
+        :param total_count: Total number of words
+        :type total_count: int
+
+        :rtype: list of dicts. Every dict is 3 keys: text - actual word,
+        size - counter of word, percent - percent in top_words dataset.
+
+        Calculates corrected percents for every top word:
+
+        For every word except last, it calculates rounded percent.
+        For the last is 100 - sum of all other percents.
+
         """
-        Generate initial i18n with dummy method.
+        list_to_return = []
+        percents = 0
+        sorted_top_words = sorted(top_words.items(), key=lambda x: x[0].lower())
+        for num, word_tuple in enumerate(sorted_top_words):
+            if num == len(top_words) - 1:
+                percent = 100 - percents
+            else:
+                percent = round((100.0 * word_tuple[1]) / total_count)
+                percents += percent
+            list_to_return.append(
+                {
+                    'text': word_tuple[0],
+                    'size': word_tuple[1],
+                    'percent': percent
+                }
+            )
+        return list_to_return
+
+    def top_dict(self, dict_obj, amount):
+        """Return top words from all words, filtered by number of
+        occurences
+
+        :param dict_obj: all words
+        :type dict_obj: dict
+        :param amount: number of words to be in top dict
+        :type amount: int
+        :rtype: dict
         """
-        return translation.gettext_noop('Dummy')
+        return dict(
+            sorted(
+                list(dict_obj.items()),
+                key=lambda x: x[1],
+                reverse=True
+            )[:amount]
+        )
+
+    def handle_ajax(self, dispatch, data):
+        """Ajax handler.
+
+        Args:
+            dispatch: string request slug
+            data: dict request get parameters
+
+        Returns:
+            json string
+        """
+        if dispatch == 'submit':
+            if self.submitted:
+                return json.dumps({
+                    'status': 'fail',
+                    'error': 'You have already posted your data.'
+                })
+
+            # Student words from client.
+            # FIXME: we must use raw JSON, not a post data (multipart/form-data)
+            raw_student_words = data.getall('student_words[]')
+            student_words = [word for word in map(self.good_word, raw_student_words) if word]
+
+            self.student_words = student_words
+
+            # FIXME: fix this, when xblock will support mutable types.
+            # Now we use this hack.
+            # speed issues
+            temp_all_words = self.all_words
+
+            self.submitted = True
+
+            # Save in all_words.
+            for word in self.student_words:
+                temp_all_words[word] = temp_all_words.get(word, 0) + 1
+
+            # Update top_words.
+            self.top_words = self.top_dict(
+                temp_all_words,
+                self.num_top_words
+            )
+
+            # Save all_words in database.
+            self.all_words = temp_all_words
+
+            return self.get_state()
+        elif dispatch == 'get_state':
+            return self.get_state()
+        else:
+            return json.dumps({
+                'status': 'fail',
+                'error': 'Unknown Command!'
+            })
+
+    def index_dictionary(self):
+        """
+        Return dictionary prepared with block content and type for indexing.
+        """
+        # return key/value fields in a Python dict object
+        # values may be numeric / string or dict
+        # default implementation is an empty dict
+
+        xblock_body = super().index_dictionary()
+
+        index_body = {
+            "display_name": self.display_name,
+            "instructions": self.instructions,
+        }
+
+        if "content" in xblock_body:
+            xblock_body["content"].update(index_body)
+        else:
+            xblock_body["content"] = index_body
+
+        xblock_body["content_type"] = "Word Cloud"
+
+        return xblock_body
+
+    def get_context(self):
+        _context = {
+            'module': self,
+            'editable_metadata_fields': self.editable_metadata_fields
+        }
+        # Add our specific template information (the raw data body)
+        # _context.update({'data': self.data})
+        return _context
