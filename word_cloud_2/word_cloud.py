@@ -103,8 +103,6 @@ class WordCloudXBlock(StudioEditableXBlockMixin, XBlock):
         frag.add_content(resource_loader.render_django_template(
             'templates/word_cloud.html',
             {
-                # 'ajax_url': self.ajax_url,
-                'ajax_url': '',
                 'display_name': self.display_name,
                 'instructions': self.instructions,
                 'element_class': "word_cloud_2",
@@ -120,8 +118,12 @@ class WordCloudXBlock(StudioEditableXBlockMixin, XBlock):
         ))
         frag.add_css(self.resource_string("static/css/word_cloud.css"))
 
-        frag.add_javascript(self.resource_string("static/js/src/WordCloudBlockDisplay.js"))
-        frag.initialize_js('XBlockToXModuleShim')
+        frag.add_javascript(self.resource_string("static/js/src/word_cloud_display.js"))
+        frag.add_javascript(self.resource_string("static/js/src/d3.min.js"))
+        frag.add_javascript(self.resource_string("static/js/src/d3.layout.cloud.js"))
+        # frag.add_javascript(self.resource_string("static/js/src/utils/html-utils.js"))
+
+        frag.initialize_js('WordCloudXBlock')
         return frag
 
     def author_view(self, context):
@@ -176,7 +178,7 @@ class WordCloudXBlock(StudioEditableXBlockMixin, XBlock):
         """Return success json answer for client."""
         if self.submitted:
             total_count = sum(self.all_words.values())
-            return json.dumps({
+            return {
                 'status': 'success',
                 'submitted': True,
                 'display_student_percents': pretty_bool(
@@ -187,16 +189,16 @@ class WordCloudXBlock(StudioEditableXBlockMixin, XBlock):
                 },
                 'total_count': total_count,
                 'top_words': self.prepare_words(self.top_words, total_count)
-            })
+            }
         else:
-            return json.dumps({
+            return {
                 'status': 'success',
                 'submitted': False,
                 'display_student_percents': False,
                 'student_words': {},
                 'total_count': 0,
                 'top_words': {}
-            })
+            }
 
     def good_word(self, word):
         """Convert raw word to suitable word."""
@@ -340,3 +342,48 @@ class WordCloudXBlock(StudioEditableXBlockMixin, XBlock):
         # Add our specific template information (the raw data body)
         # _context.update({'data': self.data})
         return _context
+
+    @XBlock.json_handler
+    def prepare_data(self, data, suffix=''):  # pylint: disable=unused-argument
+        """Ajax handler.
+
+        Args:
+            dispatch: string request slug
+            data: dict request get parameters
+
+        Returns:
+            json string
+        """
+        if self.submitted:
+            return json.dumps({
+                'status': 'fail',
+                'error': 'You have already posted your data.'
+            })
+
+        # Student words from client.
+        # FIXME: we must use raw JSON, not a post data (multipart/form-data)
+        raw_student_words = data.get('student_words')
+        student_words = [word for word in map(self.good_word, raw_student_words) if word]
+
+        self.student_words = student_words
+
+        # FIXME: fix this, when xblock will support mutable types.
+        # Now we use this hack.
+        # speed issues
+        temp_all_words = self.all_words
+
+        self.submitted = True
+
+        # Save in all_words.
+        for word in self.student_words:
+            temp_all_words[word] = temp_all_words.get(word, 0) + 1
+
+        # Update top_words.
+        self.top_words = self.top_dict(
+            temp_all_words,
+            self.num_top_words
+        )
+        # Save all_words in database.
+        self.all_words = temp_all_words
+        state = self.get_state()
+        return state

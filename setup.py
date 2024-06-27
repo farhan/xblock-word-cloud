@@ -177,6 +177,6 @@ setup(
             'word_cloud_2 = word_cloud_2.word_cloud:WordCloudXBlock',
         ]
     },
-    package_data=package_data("word_cloud_2", ["static", "public"]),
+    package_data=package_data("word_cloud_2", ["static", "public", "templates"]),
 
 )
