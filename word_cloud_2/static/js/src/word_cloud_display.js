@@ -32,10 +32,10 @@ function showWordCloud(response) {
   //     this.showWordCloud(this.configJson);
   // }
 
-  console.log('farhan.showWordCloud');
-  console.log(typeof (response));
-  console.log('farhan.response', response);
-  console.log('farhan.top_words', response.top_words);
+  // console.log('farhan.showWordCloud');
+  // console.log(typeof (response));
+  // console.log('farhan.response', response);
+  // console.log('farhan.top_words', response.top_words);
 
   const words = response.top_words;
   let maxSize = 0;
@@ -89,7 +89,6 @@ function showWordCloud(response) {
   this.width = 635;
   this.height = 635;
 
-  // var words = ["Hello", "Everybody", "How", "Are", "You", "Today", "It", "Is", "A", "Lovely", "Day", "I", "Love", "Coding", "In", "My", "Van", "Mate"]
   var layout = d3.layout.cloud()
     .size([this.width, this.height])
     .words(words)
@@ -103,42 +102,10 @@ function showWordCloud(response) {
       return size;
     })
     .on("end", (wds, bounds) => {
-      drawWordCloud(response, wds, bounds, layout);
+      drawWordCloud(response, wds, bounds);
       // draw(words, layout);
     });
   layout.start();
-}
-
-function draw(words, layout) {
-  // set the dimensions and margins of the graph
-  var margin = {top: 10, right: 10, bottom: 10, left: 10},
-    width = 450 - margin.left - margin.right,
-    height = 450 - margin.top - margin.bottom;
-
-  // append the svg object to the body of the page
-  var svg = d3.select("#my_dataviz").append("svg")
-    .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom)
-    .append("g")
-    .attr("transform",
-      "translate(" + margin.left + "," + margin.top + ")");
-
-  svg
-    .append("g")
-    .attr("transform", "translate(" + layout.size()[0] / 2 + "," + layout.size()[1] / 2 + ")")
-    .selectAll("text")
-    .data(words)
-    .enter().append("text")
-    .style("font-size", function (d) {
-      return d.size + "px";
-    })
-    .attr("text-anchor", "middle")
-    .attr("transform", function (d) {
-      return "translate(" + [d.x, d.y] + ")rotate(" + d.rotate + ")";
-    })
-    .text(function (d) {
-      return d.text;
-    });
 }
 
 /**
@@ -159,7 +126,7 @@ function draw(words, layout) {
  * box where all of the words fir, second object is the bottom-right coordinates of the bounding box. Each
  * coordinate object contains two properties: 'x', and 'y'.
  */
-function drawWordCloud(response, words, bounds, layout) {
+function drawWordCloud(response, words, bounds) {
 
   // draw(words, layout);
   // return;
@@ -173,7 +140,8 @@ function drawWordCloud(response, words, bounds, layout) {
   console.log("farhan.response: ", response);
 
   // Color words in different colors.
-  const fill = d3.scale.category20();
+  // const fill = d3.scale.category20();
+  const fill = 1;
 
   // Will be populated by words the user enetered.
   const studentWordsKeys = [];
@@ -244,7 +212,13 @@ function drawWordCloud(response, words, bounds, layout) {
 
   // Actual drawing of word cloud.
   // const groupEl = d3.select(`#${cloudSectionEl.attr('id')} .word_cloud`).append('svg')
-  const groupEl = d3.select("#my_dataviz").append('svg')
+  // const groupEl = d3.select(`#my_div`).append('svg')
+  const wcId = `#${cloudSectionEl.attr('id')} .word_cloud`;
+  const d3WC = d3.select(wcId);
+  console.log('Farhan. wcId:', wcId);
+  console.log('Farhan. d3WC:', d3WC);
+  debugger;
+  const groupEl = d3WC.append('svg')
     .attr('width', this.width)
     .attr('height', this.height)
     .append('g')
@@ -298,7 +272,7 @@ function drawWordCloud(response, words, bounds, layout) {
     ))
     .style('font-size', d => `${d.size}px`)
     .style('font-family', 'Impact')
-    .style('fill', (d, i) => fill(i))
+    // .style('fill', (d, i) => fill(i))
     .attr('text-anchor', 'middle')
     .attr('transform', d => `translate(${d.x}, ${d.y})rotate(${d.rotate})scale(${scale})`)
     .text(d => d.text);

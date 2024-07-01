@@ -1,5 +1,6 @@
 """TO-DO: Write a description of what this XBlock is."""
 import json
+import uuid
 
 import pkg_resources
 from web_fragments.fragment import Fragment
@@ -106,7 +107,7 @@ class WordCloudXBlock(StudioEditableXBlockMixin, XBlock):
                 'display_name': self.display_name,
                 'instructions': self.instructions,
                 'element_class': "word_cloud_2",
-                'element_id': self.scope_ids.usage_id,
+                'element_id': uuid.uuid1(0),
                 # TODO: review following 2 lines coming from XModuleMixin
                 # 'element_class': self.location.block_type,"'word_cloud_2'"
                 # 'element_id': self.location.html_id(), self.scope_ids.usage_id
